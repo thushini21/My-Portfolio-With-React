@@ -3,6 +3,7 @@ import { useState } from 'react'
 import reactLogo from "./assets/react.svg"
 // @ts-ignore
 import viteLogo from "/vite.svg"
+// @ts-ignore
 import './App.css'
 
 function App():any {

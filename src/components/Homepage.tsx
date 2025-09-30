@@ -56,7 +56,6 @@ import proPic from '../images/proPic/propic3.jpg'
 // @ts-ignore
 import proPic2 from '../images/proPic/about.jpg'
 
-import emailjs from 'emailjs-com';
 import toast, { Toaster } from 'react-hot-toast';
 
 import React, {useEffect, useState} from "react";
@@ -343,32 +342,6 @@ export default function PortfolioHomepage(): any {
     
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Test function to verify EmailJS setup
-    const testEmailJS = async () => {
-        const testParams = {
-            from_name: 'Test User',
-            from_email: 'test@example.com',
-            subject: 'EmailJS Test',
-            message: 'This is a test message to verify EmailJS setup.',
-            to_name: 'Thushini',
-            to_email: 'thushiniakashi58@gmail.com', // Updated to correct email
-        };
-
-        try {
-            const result = await emailjs.send(
-                'service_7qb9vsf',
-                'template_0cy7ra2', 
-                testParams,
-                'w8fwoqZKlq0TGX-T9'
-            );
-            console.log('Test email sent:', result);
-            toast.success('Test email sent! Check your inbox.');
-        } catch (error) {
-            console.error('Test email failed:', error);
-            toast.error('Test email failed. Please check EmailJS setup.');
-        }
-    };
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>)  => {
         console.log('Input changed:', e.target.name, e.target.value);
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -390,59 +363,110 @@ export default function PortfolioHomepage(): any {
         setIsSubmitting(true);
         const loadingToast = toast.loading('Sending your message...');
 
-        try {
-            // Method 1: Try Formspree (Free email service)
-            const formspreeResponse = await fetch('https://formspree.io/f/xpwzgnbp', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: formData.name,
-                    email: formData.email,
-                    subject: formData.subject,
-                    message: formData.message,
-                    _replyto: formData.email,
-                    _subject: `Portfolio Contact: ${formData.subject}`,
-                }),
-            });
+        // Create email content for backup method
+        const emailContent = {
+            to: 'thushiniakashi58@gmail.com',
+            subject: `Portfolio Contact from ${formData.name}: ${formData.subject}`,
+            body: `New message from your portfolio:
 
-            if (formspreeResponse.ok) {
-                console.log('Message sent successfully via Formspree');
+From: ${formData.name}
+Email: ${formData.email}
+Subject: ${formData.subject}
+
+Message:
+${formData.message}
+
+---
+Sent from your portfolio contact form
+Time: ${new Date().toLocaleString()}`
+        };
+
+        try {
+            // Method 1: Try to send via fetch to a working endpoint
+            let emailSent = false;
+            
+            // Try multiple services in sequence
+            const services = [
+                {
+                    name: 'Formspree',
+                    url: 'https://formspree.io/f/mjkbkqnp',
+                    data: {
+                        name: formData.name,
+                        email: formData.email,
+                        subject: formData.subject,
+                        message: formData.message,
+                        _replyto: formData.email,
+                        _subject: emailContent.subject
+                    }
+                },
+                {
+                    name: 'GetForm',
+                    url: 'https://getform.io/f/your-form-id',
+                    data: {
+                        name: formData.name,
+                        email: formData.email,
+                        subject: formData.subject,
+                        message: formData.message
+                    }
+                }
+            ];
+
+            for (const service of services) {
+                try {
+                    const response = await fetch(service.url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(service.data)
+                    });
+
+                    if (response.ok) {
+                        console.log(`Email sent via ${service.name}`);
+                        emailSent = true;
+                        break;
+                    }
+                } catch (serviceError) {
+                    console.log(`${service.name} failed:`, serviceError);
+                    continue;
+                }
+            }
+
+            if (emailSent) {
                 toast.dismiss(loadingToast);
                 toast.success('🚀 Message sent successfully! I\'ll get back to you soon.');
                 setFormData({ name: '', email: '', subject: '', message: '' });
                 return;
             }
 
-            // Method 2: Try mailto link as backup (opens email client)
-            const mailtoBody = `Name: ${formData.name}%0D%0AEmail: ${formData.email}%0D%0A%0D%0AMessage:%0D%0A${formData.message}`;
-            const mailtoLink = `mailto:thushiniakashi58@gmail.com?subject=${encodeURIComponent('Portfolio Contact: ' + formData.subject)}&body=${mailtoBody}`;
-            
-            // Open email client
-            window.open(mailtoLink, '_blank');
-            
-            toast.dismiss(loadingToast);
-            toast.success('📧 Opening your email client to send the message!');
-            setFormData({ name: '', email: '', subject: '', message: '' });
+            // If all services fail, use email client method
+            throw new Error('All email services failed');
 
         } catch (error: any) {
-            console.error('Message failed:', error);
+            console.error('All services failed, using email client:', error);
+            
+            // Method 2: Always use email client as reliable backup
             toast.dismiss(loadingToast);
             
-            // Method 3: Direct email link as final fallback
-            const subject = encodeURIComponent(`Portfolio Contact: ${formData.subject}`);
-            const body = encodeURIComponent(`Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`);
-            const mailtoLink = `mailto:thushiniakashi58@gmail.com?subject=${subject}&body=${body}`;
+            const mailtoSubject = encodeURIComponent(emailContent.subject);
+            const mailtoBody = encodeURIComponent(emailContent.body);
+            const mailtoLink = `mailto:${emailContent.to}?subject=${mailtoSubject}&body=${mailtoBody}`;
             
-            const userWantsEmail = confirm('Failed to send automatically. Would you like to open your email client to send the message?');
-            if (userWantsEmail) {
-                window.open(mailtoLink, '_blank');
-                toast.success('📧 Opening your email client!');
-                setFormData({ name: '', email: '', subject: '', message: '' });
-            } else {
-                toast.error('❌ Please contact me directly at thushiniakashi58@gmail.com');
-            }
+            // Open email client with pre-filled message
+            window.open(mailtoLink, '_blank');
+            
+            toast.success('📧 Your email client is opening with the message ready to send!');
+            
+            // Show additional instruction in a separate toast
+            setTimeout(() => {
+                toast('💡 Just click Send in your email client to deliver the message.', {
+                    duration: 6000,
+                    icon: '💡'
+                });
+            }, 1000);
+            
+            setFormData({ name: '', email: '', subject: '', message: '' });
         } finally {
             setIsSubmitting(false);
         }
@@ -1562,7 +1586,7 @@ export default function PortfolioHomepage(): any {
                                 
                                 {/* Button Content */}
                                 <span className="relative z-10 text-white group-hover:text-white transition-colors duration-300">
-                                    {isSubmitting ? 'SENDING...' : 'SEND MESSAGE'}
+                                    {isSubmitting ? 'SENDING MESSAGE...' : 'SEND MESSAGE 📧'}
                                 </span>
                                 
                                 {isSubmitting ? (
@@ -1579,6 +1603,13 @@ export default function PortfolioHomepage(): any {
                                     </>
                                 )}
                             </button>
+                            
+                            {/* Status Message */}
+                            <div className="text-center mt-4">
+                                <p className="text-gray-400 text-sm">
+                                    📧 Messages will be sent to: <span className="text-cyan-300">thushiniakashi58@gmail.com</span>
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

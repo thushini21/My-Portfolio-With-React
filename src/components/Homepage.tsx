@@ -1,7 +1,6 @@
 import {
 
     Github,
-    Download,
 
     ExternalLink,
     Palette, Code, Send, Phone, Mail,

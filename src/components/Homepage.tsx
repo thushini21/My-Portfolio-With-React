@@ -57,7 +57,7 @@ import proPic from '../images/proPic/propic3.jpg'
 import proPic2 from '../images/proPic/about.jpg'
 
 import emailjs from 'emailjs-com';
-
+import toast, { Toaster } from 'react-hot-toast';
 
 import React, {useEffect, useState} from "react";
 
@@ -340,35 +340,112 @@ export default function PortfolioHomepage(): any {
         subject: '',
         message: ''
     });
+    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Test function to verify EmailJS setup
+    const testEmailJS = async () => {
+        const testParams = {
+            from_name: 'Test User',
+            from_email: 'test@example.com',
+            subject: 'EmailJS Test',
+            message: 'This is a test message to verify EmailJS setup.',
+            to_name: 'Thushini',
+            to_email: 'thushiniakashi58@gmail.com', // Updated to correct email
+        };
+
+        try {
+            const result = await emailjs.send(
+                'service_7qb9vsf',
+                'template_0cy7ra2', 
+                testParams,
+                'w8fwoqZKlq0TGX-T9'
+            );
+            console.log('Test email sent:', result);
+            toast.success('Test email sent! Check your inbox.');
+        } catch (error) {
+            console.error('Test email failed:', error);
+            toast.error('Test email failed. Please check EmailJS setup.');
+        }
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>)  => {
         console.log('Input changed:', e.target.name, e.target.value);
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleFormSubmitted = (e: React.MouseEvent<HTMLButtonElement>)  => {
+    const handleFormSubmitted = async (e: React.MouseEvent<HTMLButtonElement>)  => {
         e.preventDefault();
 
         if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-            alert('Please fill all required fields.');
+            toast.error('Please fill all required fields!');
             return;
         }
 
-        emailjs.send(
-            'service_7qb9vsf',        // Service ID
-            'template_0cy7ra2',       // Template ID
-            formData,                 // Form data
-            'w8fwoqZKlq0TGX-T9'       // Public key / User ID
-        )
-            .then((result: any) => {
-                console.log('Email sent:', result.text);
-                alert('Message sent successfully!');
-                setFormData({ name: '', email: '', subject: '', message: '' }); // Reset form
-            })
-            .catch((error: any) => {
-                console.log('Email failed:', error.text);
-                alert('Failed to send message.');
+        if (!formData.email.includes('@')) {
+            toast.error('Please enter a valid email address!');
+            return;
+        }
+
+        setIsSubmitting(true);
+        const loadingToast = toast.loading('Sending your message...');
+
+        try {
+            // Method 1: Try Formspree (Free email service)
+            const formspreeResponse = await fetch('https://formspree.io/f/xpwzgnbp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: formData.name,
+                    email: formData.email,
+                    subject: formData.subject,
+                    message: formData.message,
+                    _replyto: formData.email,
+                    _subject: `Portfolio Contact: ${formData.subject}`,
+                }),
             });
+
+            if (formspreeResponse.ok) {
+                console.log('Message sent successfully via Formspree');
+                toast.dismiss(loadingToast);
+                toast.success('🚀 Message sent successfully! I\'ll get back to you soon.');
+                setFormData({ name: '', email: '', subject: '', message: '' });
+                return;
+            }
+
+            // Method 2: Try mailto link as backup (opens email client)
+            const mailtoBody = `Name: ${formData.name}%0D%0AEmail: ${formData.email}%0D%0A%0D%0AMessage:%0D%0A${formData.message}`;
+            const mailtoLink = `mailto:thushiniakashi58@gmail.com?subject=${encodeURIComponent('Portfolio Contact: ' + formData.subject)}&body=${mailtoBody}`;
+            
+            // Open email client
+            window.open(mailtoLink, '_blank');
+            
+            toast.dismiss(loadingToast);
+            toast.success('📧 Opening your email client to send the message!');
+            setFormData({ name: '', email: '', subject: '', message: '' });
+
+        } catch (error: any) {
+            console.error('Message failed:', error);
+            toast.dismiss(loadingToast);
+            
+            // Method 3: Direct email link as final fallback
+            const subject = encodeURIComponent(`Portfolio Contact: ${formData.subject}`);
+            const body = encodeURIComponent(`Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`);
+            const mailtoLink = `mailto:thushiniakashi58@gmail.com?subject=${subject}&body=${body}`;
+            
+            const userWantsEmail = confirm('Failed to send automatically. Would you like to open your email client to send the message?');
+            if (userWantsEmail) {
+                window.open(mailtoLink, '_blank');
+                toast.success('📧 Opening your email client!');
+                setFormData({ name: '', email: '', subject: '', message: '' });
+            } else {
+                toast.error('❌ Please contact me directly at thushiniakashi58@gmail.com');
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const [isOpen, setIsOpen] = useState(false);
@@ -1393,6 +1470,13 @@ export default function PortfolioHomepage(): any {
                         </div>
 
                         {/* Enhanced Form Fields */}
+                        <form name="contact" method="POST" data-netlify="true" style={{display: 'none'}}>
+                            <input type="text" name="name" />
+                            <input type="email" name="email" />
+                            <input type="text" name="subject" />
+                            <textarea name="message"></textarea>
+                        </form>
+                        
                         <div className="relative z-10 space-y-6">
                             {/* Name and Email Row */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1461,21 +1545,39 @@ export default function PortfolioHomepage(): any {
                             {/* Enhanced Submit Button */}
                             <button
                                 onClick={handleFormSubmitted}
-                                className="group relative w-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 hover:from-emerald-600 hover:via-cyan-600 hover:to-blue-600 px-8 py-5 rounded-2xl font-bold text-lg flex items-center justify-center space-x-4 overflow-hidden transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/25 transform-gpu"
+                                disabled={isSubmitting}
+                                className={`group relative w-full px-8 py-5 rounded-2xl font-bold text-lg flex items-center justify-center space-x-4 overflow-hidden transition-all duration-500 transform-gpu ${
+                                    isSubmitting 
+                                        ? 'bg-gradient-to-r from-gray-500 via-gray-600 to-gray-500 cursor-not-allowed' 
+                                        : 'bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 hover:from-emerald-600 hover:via-cyan-600 hover:to-blue-600 hover:scale-105 hover:shadow-2xl hover:shadow-emerald-500/25'
+                                }`}
                             >
                                 {/* Button Background Effects */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/50 to-blue-500/50 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                {!isSubmitting && (
+                                    <>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/50 to-blue-500/50 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    </>
+                                )}
                                 
                                 {/* Button Content */}
                                 <span className="relative z-10 text-white group-hover:text-white transition-colors duration-300">
-                                    SEND MESSAGE
+                                    {isSubmitting ? 'SENDING...' : 'SEND MESSAGE'}
                                 </span>
-                                <Send className="relative z-10 w-6 h-6 text-white group-hover:translate-x-2 group-hover:rotate-12 transition-all duration-300" />
+                                
+                                {isSubmitting ? (
+                                    <div className="relative z-10 w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                ) : (
+                                    <Send className="relative z-10 w-6 h-6 text-white group-hover:translate-x-2 group-hover:rotate-12 transition-all duration-300" />
+                                )}
                                 
                                 {/* Floating particles */}
-                                <div className="absolute top-1 right-4 w-1 h-1 bg-white rounded-full animate-ping opacity-0 group-hover:opacity-100"></div>
-                                <div className="absolute bottom-1 left-8 w-1 h-1 bg-white rounded-full animate-pulse opacity-0 group-hover:opacity-100" style={{animationDelay: '0.3s'}}></div>
+                                {!isSubmitting && (
+                                    <>
+                                        <div className="absolute top-1 right-4 w-1 h-1 bg-white rounded-full animate-ping opacity-0 group-hover:opacity-100"></div>
+                                        <div className="absolute bottom-1 left-8 w-1 h-1 bg-white rounded-full animate-pulse opacity-0 group-hover:opacity-100" style={{animationDelay: '0.3s'}}></div>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -1780,6 +1882,55 @@ export default function PortfolioHomepage(): any {
                     <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{animationDelay: '0.6s'}}></div>
                 </div>
             </footer>
+
+            {/* Toast Notifications */}
+            <Toaster
+                position="top-right"
+                toastOptions={{
+                    duration: 4000,
+                    style: {
+                        background: 'rgba(30, 41, 59, 0.95)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        borderRadius: '16px',
+                        color: '#ffffff',
+                        padding: '16px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                    },
+                    success: {
+                        style: {
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            boxShadow: '0 25px 50px -12px rgba(16, 185, 129, 0.15)',
+                        },
+                        iconTheme: {
+                            primary: '#10b981',
+                            secondary: '#ffffff',
+                        },
+                    },
+                    error: {
+                        style: {
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            boxShadow: '0 25px 50px -12px rgba(239, 68, 68, 0.15)',
+                        },
+                        iconTheme: {
+                            primary: '#ef4444',
+                            secondary: '#ffffff',
+                        },
+                    },
+                    loading: {
+                        style: {
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            boxShadow: '0 25px 50px -12px rgba(59, 130, 246, 0.15)',
+                        },
+                        iconTheme: {
+                            primary: '#3b82f6',
+                            secondary: '#ffffff',
+                        },
+                    },
+                }}
+            />
 
         </div>
     );

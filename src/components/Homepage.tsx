@@ -61,7 +61,7 @@ import emailjs from 'emailjs-com';
 
 import React, {useEffect, useState} from "react";
 
-export default function PortfolioHomepage():any {
+export default function PortfolioHomepage(): any {
 
     const skills = [
         {
@@ -360,12 +360,12 @@ export default function PortfolioHomepage():any {
             formData,                 // Form data
             'w8fwoqZKlq0TGX-T9'       // Public key / User ID
         )
-            .then((result) => {
+            .then((result: any) => {
                 console.log('Email sent:', result.text);
                 alert('Message sent successfully!');
                 setFormData({ name: '', email: '', subject: '', message: '' }); // Reset form
             })
-            .catch((error) => {
+            .catch((error: any) => {
                 console.log('Email failed:', error.text);
                 alert('Failed to send message.');
             });
